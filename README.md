@@ -1,3 +1,116 @@
+# バーコードスキャナー
+
+React + AWS Lambda を使用したマルチフォーマットバーコード読み取りシステムです。
+
+## 機能
+
+- 📷 リアルタイムカメラスキャン
+- 📁 ファイルアップロードスキャン
+- 🎫 複数のチケット会社対応
+- 📊 複数のバーコード形式対応
+- 🎨 モダンなMaterial-UIデザイン
+- 📱 レスポンシブデザイン
+
+## 対応バーコード形式
+
+- CODE128
+- CODE39
+- EAN13
+- ITF
+- CODABAR
+- CODE93
+
+## 対応チケット会社
+
+- セブンチケット
+- チケットぴあ
+- ローソンチケット
+- イープラス
+- CNプレイガイド
+
+## 技術スタック
+
+- **フロントエンド**: React 19, Material-UI 7
+- **バーコード読み取り**: ZXing Library
+- **HTTP通信**: Axios
+- **ルーティング**: React Router DOM
+- **カメラ**: WebRTC MediaDevices API
+
+## セットアップ
+
+### 前提条件
+
+- Node.js 18以上
+- npm または yarn
+
+### インストール
+
+```bash
+# 依存関係をインストール
+npm install
+
+# 開発サーバーを起動
+npm start
+```
+
+### 環境変数
+
+`.env`ファイルを作成して以下の環境変数を設定してください：
+
+```env
+REACT_APP_API_URL=https://your-lambda-api.amazonaws.com/api/v1
+REACT_APP_ENABLE_DEBUG=false
+REACT_APP_MAX_FILE_SIZE=10485760
+```
+
+## 使用方法
+
+1. **カメラモード**: リアルタイムでカメラを使用してバーコードをスキャン
+2. **ファイルモード**: 画像ファイルをアップロードしてバーコードをスキャン
+3. **設定**: チケット会社やバーコード形式を事前に指定可能
+4. **結果表示**: スキャン結果を詳細に表示し、コピー機能も利用可能
+
+## プロジェクト構造
+
+```
+src/
+├── components/
+│   ├── BarcodeScanner/     # メインスキャナーコンポーネント
+│   ├── common/             # 共通コンポーネント
+│   └── layout/             # レイアウトコンポーネント
+├── hooks/                  # カスタムフック
+├── services/               # APIサービス
+├── utils/                  # ユーティリティ・定数
+└── styles/                 # スタイル定義
+```
+
+## 開発
+
+```bash
+# 開発サーバー起動
+npm start
+
+# テスト実行
+npm test
+
+# 本番ビルド
+npm run build
+
+# 本番環境用ビルド
+npm run build:prod
+
+# ビルド結果の分析
+npm run analyze
+```
+
+## ライセンス
+
+MIT License
+
+## 貢献
+
+プルリクエストやイシューの報告を歓迎します。
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

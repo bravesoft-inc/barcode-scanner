@@ -1,0 +1,167 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Multi-format Barcode Scanner API
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Runtime: python3.12
+    Environment:
+      Variables:
+        PYTHONPATH: /opt/python:/var/runtime:/var/task
+        LOG_LEVEL: INFO
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+
+Resources:
+  # Lambda Layer for Python dependencies
+  PythonLibsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub barcode-python-libs-${Environment}
+      Description: Python libraries for barcode processing
+      ContentUri: layers/python-libs/
+      CompatibleRuntimes:
+        - python3.11
+      RetentionPolicy: Retain
+
+  # API Gateway
+  BarcodeApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      BinaryMediaTypes:
+        - 'image/*'
+        - 'multipart/form-data'
+
+  # Scan Function
+  ScanFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub barcode-scan-${Environment}
+      CodeUri: src/
+      Handler: handlers.scan.lambda_handler
+      Layers:
+        - !Ref PythonLibsLayer
+      Events:
+        ScanApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcodeApi
+            Path: /api/v1/scan
+            Method: post
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref TicketsTable
+
+  # Batch Scan Function
+  BatchScanFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub barcode-batch-scan-${Environment}
+      CodeUri: src/
+      Handler: handlers.scan.batch_lambda_handler
+      Timeout: 300
+      MemorySize: 2048
+      Layers:
+        - !Ref PythonLibsLayer
+      Events:
+        BatchScanApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcodeApi
+            Path: /api/v1/scan/batch
+            Method: post
+
+  # Validate Function
+  ValidateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub barcode-validate-${Environment}
+      CodeUri: src/
+      Handler: handlers.validate.lambda_handler
+      Layers:
+        - !Ref PythonLibsLayer
+      Events:
+        ValidateApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcodeApi
+            Path: /api/v1/validate/{format}
+            Method: post
+
+  # Tickets Function
+  TicketsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub barcode-tickets-${Environment}
+      CodeUri: src/
+      Handler: handlers.tickets.lambda_handler
+      Layers:
+        - !Ref PythonLibsLayer
+      Events:
+        GetTicketApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcodeApi
+            Path: /api/v1/tickets/{barcode}
+            Method: get
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref TicketsTable
+
+  # DynamoDB Table
+  TicketsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub barcode-tickets-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: barcode_data
+          AttributeType: S
+        - AttributeName: provider
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: barcode_data
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: provider-created-index
+          KeySchema:
+            - AttributeName: provider
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # S3 Bucket for ML Models
+  ModelsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub barcode-ml-models-${Environment}
+      VersioningConfiguration:
+        Status: Enabled
+
+Outputs:
+  BarcodeApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${BarcodeApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/api/v1"
+    Export:
+      Name: !Sub "${AWS::StackName}-api-url"
+
+  TicketsTableName:
+    Description: "DynamoDB table name"
+    Value: !Ref TicketsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-table-name" 
